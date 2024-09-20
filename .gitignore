@@ -1,0 +1,11 @@
+dist
+node_modules
+coverage
+*.log
+package-lock.json
+.DS_Store
+.logs
+.nyc_output/
+.env
+.envrc
+.npmrc
