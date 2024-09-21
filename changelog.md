@@ -1,5 +1,10 @@
 
 # service-creator - Changelog
+## v0.1.0
+- **Features**
+  - add support to expand arrays as multiple query params - [f3468c4]( https://github.com/royriojas/service-creator/commit/f3468c4 ), [Roy Riojas](https://github.com/Roy Riojas), 20/09/2024 23:22:36
+
+    
 ## v0.0.2
 - **Features**
   - add first set of exports - [775733e]( https://github.com/royriojas/service-creator/commit/775733e ), [Roy Riojas](https://github.com/Roy Riojas), 20/09/2024 00:06:30
