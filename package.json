@@ -1,6 +1,6 @@
 {
   "name": "service-creator",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "A simple abstraction to create \"services\", plain objects that can be used to perform fetch calls in a convention over configuration fashion.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
