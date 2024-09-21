@@ -8,7 +8,13 @@ export const paramsToURLSearchParams = <T extends object>(
   keys.forEach((key) => {
     const val = params[key as keyof T];
     if (typeof val !== 'undefined') {
-      urlSearchParams.set(key, `${val}`);
+      if (Array.isArray(val)) {
+        val.forEach((v) => {
+          urlSearchParams.append(key, v);
+        });
+      } else {
+        urlSearchParams.set(key, `${val}`);
+      }
     }
   });
 
