@@ -1,5 +1,10 @@
 
 # service-creator - Changelog
+## v0.1.1
+- **Features**
+  - fix typings for the fetchJSON type - [5ed5d38]( https://github.com/royriojas/service-creator/commit/5ed5d38 ), [Roy Riojas](https://github.com/Roy Riojas), 12/11/2024 02:51:43
+
+    
 ## v0.1.0
 - **Features**
   - add support to expand arrays as multiple query params - [f3468c4]( https://github.com/royriojas/service-creator/commit/f3468c4 ), [Roy Riojas](https://github.com/Roy Riojas), 20/09/2024 23:22:36
