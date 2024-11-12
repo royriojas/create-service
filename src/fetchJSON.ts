@@ -9,8 +9,8 @@ export class ResponseError extends Error {
   data?: ErrorData;
 }
 
-export async function fetchJSON<T, K>(url: FetchURL, params: SerializeBodyProps<K>): Promise<T> {
-  const { serializeBody = true, method, ...rest } = params;
+export async function fetchJSON<T, K>(url: FetchURL, params?: SerializeBodyProps<K>): Promise<T> {
+  const { serializeBody = true, method, ...rest } = params || {};
   const fetchMethod = method ?? 'GET';
 
   const props: FetchOptions = {
