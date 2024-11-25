@@ -1,5 +1,10 @@
 
 # service-creator - Changelog
+## v0.1.3
+- **Bug Fixes**
+  - remove unneeded code - [880bf37]( https://github.com/royriojas/service-creator/commit/880bf37 ), [Roy Riojas](https://github.com/Roy Riojas), 25/11/2024 01:25:30
+
+    
 ## v0.1.2
 - **Documentation**
   - fix typo in the name of the package - [78e47ce]( https://github.com/royriojas/service-creator/commit/78e47ce ), [Roy Riojas](https://github.com/Roy Riojas), 25/11/2024 01:19:51
