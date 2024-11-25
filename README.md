@@ -1,17 +1,17 @@
-# create-service
+# service-creator
 
 A simple abstraction to create "services", plain objects that can be used to perform fetch calls in a convention over configuration fashion.
 
 ## Installation
 
 ```bash
-npm install create-service
+npm install service-creator
 ```
 
 ## Usage
 
 ```js
-import { createService } from 'create-service';
+import { createService } from 'service-creator';
 import { v4 as uuid } from 'uuid';
 
 const fetcher = {
