@@ -1,5 +1,10 @@
 
 # service-creator - Changelog
+## v0.1.2
+- **Documentation**
+  - fix typo in the name of the package - [78e47ce]( https://github.com/royriojas/service-creator/commit/78e47ce ), [Roy Riojas](https://github.com/Roy Riojas), 25/11/2024 01:19:51
+
+    
 ## v0.1.1
 - **Features**
   - fix typings for the fetchJSON type - [5ed5d38]( https://github.com/royriojas/service-creator/commit/5ed5d38 ), [Roy Riojas](https://github.com/Roy Riojas), 12/11/2024 02:51:43
