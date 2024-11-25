@@ -2,12 +2,6 @@ import { combinePathWithBase } from './combinePathWithBase';
 import { Fetcher, FetchOptions } from './fetch-types';
 import { setQueryParams } from './url-helpers';
 
-export const combine = (host: string, path: string) => {
-  host = host.replace(/\/$/, '');
-  path = path.replace(/^\//, '');
-  return `${host}/${path}`;
-};
-
 const getDefaultData = (args: any[] = []) => (args.length > 0 ? args[0] : undefined);
 
 const tryCall = async (fn: Function, ...args: any[]) => {
