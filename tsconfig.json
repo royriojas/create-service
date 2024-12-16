@@ -20,7 +20,7 @@
     "types": ["jest", "node"],
   },
   "rootDir": "src",
-  "include": ["./src/**/*.ts", "src/BreakpointsAware.tsx"],
+  "include": ["./src/**/*.ts"],
   "compileOnSave": false,
   "exclude": ["node_modules", "dist"],
 }
