@@ -17,7 +17,7 @@
     "resolveJsonModule": true,
     "importHelpers": true,
     "skipLibCheck": true,
-    "types": ["jest", "node"],
+    "types": ["bun", "node"],
   },
   "rootDir": "src",
   "include": ["./src/**/*.ts"],
