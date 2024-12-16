@@ -1,6 +1,6 @@
 {
   "name": "service-creator",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "A simple abstraction to create \"services\", plain objects that can be used to perform fetch calls in a convention over configuration fashion.",
   "license": "MIT",
   "author": "royriojas",
@@ -70,7 +70,5 @@
     "vite-plugin-dts": "3.9.0",
     "@vitejs/plugin-react-swc": "3.4.0"
   },
-  "dependencies": {
-    
-  }
+  "dependencies": {}
 }
