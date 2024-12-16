@@ -1,4 +1,5 @@
 import { setQueryParams } from '../url-helpers';
+import { describe, test as it, expect } from "bun:test";
 
 describe('url-helpers', () => {
   describe('setQueryParams', () => {

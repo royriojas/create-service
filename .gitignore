@@ -9,3 +9,4 @@ package-lock.json
 .env
 .envrc
 .npmrc
+vite.config.ts.timestamp*
