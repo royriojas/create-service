@@ -32,7 +32,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
-          editUrl: 'https://github.com/royriojas/create-service/tree/main/website/',
+          editUrl: 'https://github.com/royriojas/create-service/tree/main/apps/docusaurus/',
         },
         blog: false,
         theme: {
