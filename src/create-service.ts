@@ -74,8 +74,11 @@ export interface DescriptorBase {
 declare const ENDPOINT_TYPES: unique symbol;
 
 /** A descriptor branded with explicit TResponse, TArgs, TError types */
-export interface TypedEndpoint<TResponse = any, TArgs = void, TError = Error>
-  extends DescriptorBase {
+export interface TypedEndpoint<
+  TResponse = any,
+  TArgs = void,
+  TError = Error,
+> extends DescriptorBase {
   readonly [ENDPOINT_TYPES]: { args: TArgs; response: TResponse; error: TError };
 }
 
@@ -156,7 +159,6 @@ export type InferService<T extends Record<string, DescriptorBase>> = {
 // ─── Overloads ───
 
 /** Create a service with types inferred from the endpoint descriptors */
-// eslint-disable-next-line no-use-before-define
 export function createService<const T extends Record<string, DescriptorBase>>(args: {
   endpoints: T;
   basePath?: string;
@@ -171,8 +173,7 @@ export function createService<T>(args: CreateServiceArgs<T>): T;
 export function createService({ endpoints, basePath, fetcher }: any): any {
   return Object.keys(endpoints).reduce((service: any, serviceName: string) => {
     service[serviceName] = async (...args: any[]) => {
-      const { url, body, headers, method, params, fetchOpts, transform } =
-        endpoints[serviceName];
+      const { url, body, headers, method, params, fetchOpts, transform } = endpoints[serviceName];
 
       let urlToUse: string = typeof url === 'function' ? await tryCall(url, ...args) : url;
       if (typeof urlToUse !== 'string') {

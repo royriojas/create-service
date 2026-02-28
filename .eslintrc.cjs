@@ -2,11 +2,8 @@ module.exports = {
   extends: [
     'airbnb',
     'plugin:react/recommended',
-    'prettier/@typescript-eslint',
-    'prettier/react',
-    'plugin:prettier/recommended',
     'plugin:react-hooks/recommended',
-    'plugin:jest-playwright/recommended',
+    'plugin:prettier/recommended',
   ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
@@ -48,6 +45,8 @@ module.exports = {
     'react/jsx-props-no-spreading': 'off',
     'no-console': 'off',
     'no-param-reassign': 'off',
+    'no-redeclare': 'off',
+    '@typescript-eslint/no-redeclare': 'error',
   },
   ignorePatterns: ['node_modules/*', 'dist/*'],
 };
