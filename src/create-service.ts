@@ -73,14 +73,14 @@ export interface DescriptorBase {
 /** @internal Type brand symbol — not present at runtime */
 declare const ENDPOINT_TYPES: unique symbol;
 
-/** A descriptor branded with explicit TArgs, TResponse, TError types */
-export interface TypedEndpoint<TArgs = any, TResponse = any, TError = Error>
+/** A descriptor branded with explicit TResponse, TArgs, TError types */
+export interface TypedEndpoint<TResponse = any, TArgs = void, TError = Error>
   extends DescriptorBase {
   readonly [ENDPOINT_TYPES]: { args: TArgs; response: TResponse; error: TError };
 }
 
 /** Configuration accepted by createEndpoint */
-export interface EndpointConfig<TArgs, TResponse> {
+export interface EndpointConfig<TResponse, TArgs> {
   url: string | ((args: TArgs) => string);
   method?: HttpMethod;
   body?: object | ((args: TArgs) => any);
@@ -91,19 +91,24 @@ export interface EndpointConfig<TArgs, TResponse> {
 }
 
 /**
- * Define a typed endpoint with explicit input/output/error types.
+ * Define a typed endpoint with explicit response/input/error types.
  *
  * @example
  * ```ts
- * createEndpoint<{ id: string }, User>({
+ * // No args:
+ * createEndpoint<User[]>({ url: '/users' })
+ * // service method: () => Promise<User[]>
+ *
+ * // With args:
+ * createEndpoint<User, { id: string }>({
  *   url: ({ id }) => `/users/${id}`,
  * })
  * // service method: (args: { id: string }) => Promise<User>
  * ```
  */
-export function createEndpoint<TArgs = void, TResponse = any, TError = Error>(
-  config: EndpointConfig<TArgs, TResponse>,
-): TypedEndpoint<TArgs, TResponse, TError> {
+export function createEndpoint<TResponse = any, TArgs = void, TError = Error>(
+  config: EndpointConfig<TResponse, TArgs>,
+): TypedEndpoint<TResponse, TArgs, TError> {
   return config as any;
 }
 

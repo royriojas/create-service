@@ -952,12 +952,14 @@ describe('createEndpoint helper', () => {
       id: string;
       name: string;
     }
-    const fetcher = createMockFetcher({ id: '1', name: 'Alice' });
+    // notice that extra field is ignored because we omit it on the transform function
+    const fetcher = createMockFetcher({ id: '1', name: 'Alice', extra: 'field' });
 
     const service = createService({
       endpoints: {
-        getUser: createEndpoint<{ id: string }, User>({
+        getUser: createEndpoint<User, { id: string, name?: string }>({
           url: ({ id }) => `/users/${id}`,
+          transform: ({ name }) => { return { id: '2', name: name || 'Alice' }; },
         }),
       },
       fetcher,
@@ -966,7 +968,7 @@ describe('createEndpoint helper', () => {
     const result = await service.getUser({ id: '42' });
 
     expect(fetcher.fetch).toHaveBeenCalledWith('/users/42', expect.objectContaining({}));
-    expect(result).toEqual({ id: '1', name: 'Alice' });
+    expect(result).toEqual({ id: '2', name: 'Alice' });
   });
 
   it('should produce a no-arg method when TArgs is void', async () => {
@@ -974,7 +976,7 @@ describe('createEndpoint helper', () => {
 
     const service = createService({
       endpoints: {
-        listItems: createEndpoint<void, number[]>({
+        listItems: createEndpoint<number[]>({
           url: '/items',
         }),
       },
@@ -993,7 +995,7 @@ describe('createEndpoint helper', () => {
 
     const service = createService({
       endpoints: {
-        getUser: createEndpoint<{ id: string }, { id: string; name: string }>({
+        getUser: createEndpoint<{ id: string; name: string }, { id: string }>({
           url: ({ id }) => `/users/${id}`,
           transform: (data: any) => data.data,
         }),
@@ -1014,7 +1016,7 @@ describe('createEndpoint helper', () => {
 
     const service = createService({
       endpoints: {
-        riskyCall: createEndpoint<void, { ok: boolean }, ApiError>({
+        riskyCall: createEndpoint<{ ok: boolean }, void, ApiError>({
           url: '/risky',
         }),
       },
@@ -1030,7 +1032,7 @@ describe('createEndpoint helper', () => {
 
     const service = createService({
       endpoints: {
-        getItem: createEndpoint<{ id: number }, { found: boolean }>({
+        getItem: createEndpoint<{ found: boolean }, { id: number }>({
           url: ({ id }) => `/items/${id}`,
         }),
       },
@@ -1051,7 +1053,7 @@ describe('createEndpoint helper', () => {
 
     const service = createService({
       endpoints: {
-        getUser: createEndpoint<{ id: string }, { name: string }>({
+        getUser: createEndpoint<{ name: string }, { id: string }>({
           url: ({ id }) => `/users/${id}`,
         }),
         listUsers: {
@@ -1071,7 +1073,7 @@ describe('createEndpoint helper', () => {
 
     const service = createService({
       endpoints: {
-        createUser: createEndpoint<{ name: string; age: number }, { created: boolean }>({
+        createUser: createEndpoint<{ created: boolean }, { name: string; age: number }>({
           url: '/users',
           method: 'POST',
           body: (args) => args,

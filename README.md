@@ -1,6 +1,6 @@
 # service-creator
 
-A simple abstraction to create "services", plain objects that can be used to perform fetch calls in a convention over configuration fashion.
+A simple abstraction to create "services" — plain objects with typed async methods that perform fetch calls, using convention over configuration.
 
 ## Installation
 
@@ -10,12 +10,10 @@ npm install service-creator
 
 ## Usage
 
-### Inferred API (recommended)
-
-Types are inferred directly from your endpoint descriptors — no interface needed:
+Define your service endpoints with `createEndpoint<TResponse, TArgs?>()` for full type safety:
 
 ```ts
-import { createService } from 'service-creator';
+import { createService, createEndpoint } from 'service-creator';
 
 interface User {
   id: string;
@@ -29,70 +27,107 @@ const fetcher = {
   },
 };
 
-const service = createService({
+const userService = createService({
   endpoints: {
-    getUsers: {
-      method: 'GET',
+    // No args — just one generic for the response type
+    listUsers: createEndpoint<User[]>({
       url: '/v1/users',
-      // transform provides return type inference: getUsers() => Promise<User[]>
-      transform: (data: any): User[] => data.users,
-    },
-    getUserById: {
-      method: 'GET',
-      // url function provides parameter type inference: getUserById(id: string) => ...
-      url: (id: string) => `/v1/users/${id}`,
-      transform: (data: any): User => data,
-    },
-    createUser: {
+    }),
+
+    // With args — response type first, then args type
+    getUser: createEndpoint<User, { id: string }>({
+      url: ({ id }) => `/v1/users/${id}`,
+    }),
+
+    // POST with body
+    createUser: createEndpoint<User, { name: string }>({
+      url: '/v1/users',
       method: 'POST',
-      url: '/v1/users',
-      // body function provides parameter type inference: createUser(payload) => ...
-      body: (payload: { name: string }) => payload,
-      transform: (data: any): User => data,
-    },
+      body: (args) => args, // args is typed as { name: string }
+    }),
+
+    // Response transformation
+    getUserName: createEndpoint<string, { id: string }>({
+      url: ({ id }) => `/v1/users/${id}`,
+      transform: (data) => data.name, // raw response → typed return value
+    }),
   },
   basePath: 'https://api.example.com',
   fetcher,
 });
 
-// All types are inferred:
-const users = await service.getUsers();        // User[]
-const user = await service.getUserById('123');  // User
-const created = await service.createUser({ name: 'Alice' }); // User
+// All types are fully inferred:
+const users = await userService.listUsers();                  // User[]
+const user = await userService.getUser({ id: '123' });        // User
+const created = await userService.createUser({ name: 'Ali' });// User
+const name = await userService.getUserName({ id: '123' });    // string
 ```
 
-### Legacy API
+### `createEndpoint<TResponse, TArgs?, TError?>`
 
-You can also pass an explicit interface for typing (backward compatible):
+| Generic | Description | Default |
+|---|---|---|
+| `TResponse` | Return type (`Promise<TResponse>`) | `any` |
+| `TArgs` | Input parameter type. Omit for no-arg endpoints. | `void` |
+| `TError` | Error type (available via `InferError`) | `Error` |
+
+### Descriptor options
+
+| Option | Type | Description |
+|---|---|---|
+| `url` | `string \| (args: TArgs) => string` | Endpoint URL — static or dynamic |
+| `method` | `HttpMethod` | HTTP method (`GET`, `POST`, `PUT`, `DELETE`, etc.) |
+| `body` | `object \| (args: TArgs) => any` | Request body — static or computed from args |
+| `headers` | `object \| (args: TArgs) => any` | Request headers — static or computed from args |
+| `params` | `object \| (args: TArgs) => any` | Query string params — static or computed from args |
+| `fetchOpts` | `FetchOptions` | Additional fetch options (credentials, mode, etc.) |
+| `transform` | `(data: any) => TResponse` | Transform the raw response before returning |
+
+### Custom error types
 
 ```ts
-import { createService } from 'service-creator';
-import { v4 as uuid } from 'uuid';
-
-export interface PPService {
-  getSomeData: (prompt: string) => Promise<SomeData[]>;
-  getDataById: (id: string) => Promise<SomeData>;
+interface ApiError {
+  code: number;
+  message: string;
 }
 
-const commonHeadersFn = () => ({
-  'x-req-id': uuid(),
-});
-
-const service = createService<PPService>({
+const service = createService({
   endpoints: {
-    getSomeData: {
-      method: 'GET',
-      url: '/v1/get-some-data',
-      body: ({ prompt }) => ({ prompt }),
-      headers: commonHeadersFn,
-    },
-    getDataById: {
-      method: 'GET',
-      headers: commonHeadersFn,
-      url: ({ id }) => `/v1/get-some-data-by-id/${id}`,
+    riskyCall: createEndpoint<Data, { id: string }, ApiError>({
+      url: ({ id }) => `/v1/data/${id}`,
+    }),
+  },
+  fetcher,
+});
+```
+
+## Alternative styles
+
+Plain descriptors (types inferred from function signatures):
+
+```ts
+const service = createService({
+  endpoints: {
+    getUser: {
+      url: (id: string) => `/v1/users/${id}`,
+      transform: (data: any): User => data,
     },
   },
-  basePath: api,
+  fetcher,
+});
+```
+
+Legacy explicit interface:
+
+```ts
+interface MyService {
+  getUser: (id: string) => Promise<User>;
+}
+
+const service = createService<MyService>({
+  endpoints: {
+    getUser: { url: (id: string) => `/v1/users/${id}` },
+  },
   fetcher,
 });
 ```
