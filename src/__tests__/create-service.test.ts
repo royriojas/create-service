@@ -1,0 +1,714 @@
+import { describe, test as it, expect, mock, beforeEach, spyOn } from 'bun:test';
+import { createService, ServiceFn } from '../create-service';
+import type { Fetcher } from '../fetch-types';
+
+// Helper to create a mock fetcher
+const createMockFetcher = (response: any = { ok: true }): Fetcher => ({
+  fetch: mock(() => Promise.resolve(response)) as any,
+});
+
+describe('createService', () => {
+  let consoleWarnSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  describe('basic service creation', () => {
+    it('should create a service object with methods matching the endpoint keys', () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      expect(typeof service.getUsers).toBe('function');
+    });
+
+    it('should create a service with multiple endpoints', () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{
+        getUsers: ServiceFn;
+        getUser: ServiceFn;
+        createUser: ServiceFn;
+      }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+          getUser: { url: (id: string) => `/users/${id}` },
+          createUser: { url: '/users', method: 'POST' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      expect(typeof service.getUsers).toBe('function');
+      expect(typeof service.getUser).toBe('function');
+      expect(typeof service.createUser).toBe('function');
+    });
+  });
+
+  describe('URL resolution', () => {
+    it('should use a static string URL', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith('/users', expect.objectContaining({}));
+    });
+
+    it('should call a function URL with the provided arguments', async () => {
+      const fetcher = createMockFetcher();
+      const urlFn = (id: string) => `/users/${id}`;
+      const service = createService<{ getUser: ServiceFn }>({
+        endpoints: {
+          getUser: { url: urlFn },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUser('123');
+
+      expect(fetcher.fetch).toHaveBeenCalledWith('/users/123', expect.objectContaining({}));
+    });
+
+    it('should throw an error if the URL function returns a non-string value', async () => {
+      const fetcher = createMockFetcher();
+      // Simulate a URL function that throws (tryCall catches it, returns undefined)
+      const badUrlFn = () => {
+        throw new Error('fail');
+      };
+      const service = createService<{ broken: ServiceFn }>({
+        endpoints: {
+          broken: { url: badUrlFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await expect(service.broken()).rejects.toThrow(
+        'URL must be a string or a function returning a string for method broken.',
+      );
+    });
+
+    it('should throw when URL is not a string (e.g. number)', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ broken: ServiceFn }>({
+        endpoints: {
+          broken: { url: 42 as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await expect(service.broken()).rejects.toThrow(
+        'URL must be a string or a function returning a string',
+      );
+    });
+  });
+
+  describe('basePath handling', () => {
+    it('should prepend basePath to the URL when provided', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: 'https://api.example.com',
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/users',
+        expect.objectContaining({}),
+      );
+    });
+
+    it('should handle basePath with trailing slash', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: 'https://api.example.com/',
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/users',
+        expect.objectContaining({}),
+      );
+    });
+
+    it('should not modify URL when basePath is undefined', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/some/path' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith('/some/path', expect.objectContaining({}));
+    });
+  });
+
+  describe('HTTP method handling', () => {
+    it('should pass the method through to the fetcher', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ createUser: ServiceFn }>({
+        endpoints: {
+          createUser: { url: '/users', method: 'POST' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.createUser({ name: 'Alice' });
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('should pass undefined as method when not specified', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ method: undefined }),
+      );
+    });
+
+    it('should support all standard HTTP methods', async () => {
+      const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const;
+
+      for (const method of methods) {
+        const fetcher = createMockFetcher();
+        const service = createService<{ endpoint: ServiceFn }>({
+          endpoints: {
+            endpoint: { url: '/resource', method },
+          },
+          basePath: undefined,
+          fetcher,
+        });
+
+        await service.endpoint();
+
+        expect(fetcher.fetch).toHaveBeenCalledWith(
+          '/resource',
+          expect.objectContaining({ method }),
+        );
+      }
+    });
+  });
+
+  describe('body handling', () => {
+    it('should use the first arg as body for non-GET methods when body is not a function', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ createUser: ServiceFn }>({
+        endpoints: {
+          createUser: { url: '/users', method: 'POST' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      const payload = { name: 'Alice' };
+      await service.createUser(payload);
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ body: payload }),
+      );
+    });
+
+    it('should use undefined as body for GET methods even if args are provided', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users', method: 'GET' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers('some-arg');
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ body: undefined }),
+      );
+    });
+
+    it('should use undefined as body for methods without explicit method (default undefined) when no args', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ doSomething: ServiceFn }>({
+        endpoints: {
+          doSomething: { url: '/action' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.doSomething();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/action',
+        expect.objectContaining({ body: undefined }),
+      );
+    });
+
+    it('should call body function with all args when body is a function', async () => {
+      const fetcher = createMockFetcher();
+      const bodyFn = mock((a: string, b: number) => ({ name: a, age: b }));
+
+      const service = createService<{ createUser: ServiceFn }>({
+        endpoints: {
+          createUser: { url: '/users', method: 'POST', body: bodyFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.createUser('Alice', 30);
+
+      expect(bodyFn).toHaveBeenCalledWith('Alice', 30);
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ body: { name: 'Alice', age: 30 } }),
+      );
+    });
+
+    it('should use first arg as body for non-GET when no body descriptor and args are present', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ updateUser: ServiceFn }>({
+        endpoints: {
+          updateUser: { url: '/users', method: 'PUT' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      const payload = { name: 'Bob' };
+      await service.updateUser(payload);
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ body: payload }),
+      );
+    });
+  });
+
+  describe('headers handling', () => {
+    it('should pass static headers to the fetcher', async () => {
+      const fetcher = createMockFetcher();
+      const customHeaders = { Authorization: 'Bearer token123' };
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users', headers: customHeaders },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ headers: customHeaders }),
+      );
+    });
+
+    it('should call headers function with all args when headers is a function', async () => {
+      const fetcher = createMockFetcher();
+      const headersFn = mock((token: string) => ({ Authorization: `Bearer ${token}` }));
+
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users', headers: headersFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers('myToken');
+
+      expect(headersFn).toHaveBeenCalledWith('myToken');
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ headers: { Authorization: 'Bearer myToken' } }),
+      );
+    });
+
+    it('should pass undefined headers when not specified', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ headers: undefined }),
+      );
+    });
+  });
+
+  describe('params (query string) handling', () => {
+    it('should append static params as query string', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users', params: { page: '1', limit: '10' } },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users?page=1&limit=10',
+        expect.objectContaining({}),
+      );
+    });
+
+    it('should call params function with all args when params is a function', async () => {
+      const fetcher = createMockFetcher();
+      const paramsFn = mock((page: number) => ({ page: `${page}`, limit: '10' }));
+
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users', params: paramsFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers(2);
+
+      expect(paramsFn).toHaveBeenCalledWith(2);
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users?page=2&limit=10',
+        expect.objectContaining({}),
+      );
+    });
+
+    it('should not modify URL when params is not provided', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith('/users', expect.objectContaining({}));
+    });
+
+    it('should not modify URL when params is undefined (from tryCall failure)', async () => {
+      const fetcher = createMockFetcher();
+      const failingParamsFn = () => {
+        throw new Error('params error');
+      };
+
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users', params: failingParamsFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      // tryCall returns undefined when function fails, so params won't be appended
+      expect(fetcher.fetch).toHaveBeenCalledWith('/users', expect.objectContaining({}));
+    });
+  });
+
+  describe('fetchOpts handling', () => {
+    it('should merge fetchOpts into the request options', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: {
+            url: '/users',
+            fetchOpts: { credentials: 'include', mode: 'cors' } as any,
+          },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ credentials: 'include', mode: 'cors' }),
+      );
+    });
+
+    it('should override fetchOpts with computed body, headers, and method', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ createUser: ServiceFn }>({
+        endpoints: {
+          createUser: {
+            url: '/users',
+            method: 'POST',
+            headers: { 'X-Custom': 'value' },
+            fetchOpts: {
+              // These should be overridden
+              body: 'oldBody',
+              headers: { 'X-Old': 'old' },
+              method: 'GET',
+            } as any,
+          },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      const payload = { name: 'Alice' };
+      await service.createUser(payload);
+
+      // body, headers, and method from the descriptor should take precedence
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({
+          body: payload,
+          headers: { 'X-Custom': 'value' },
+          method: 'POST',
+        }),
+      );
+    });
+  });
+
+  describe('tryCall error handling', () => {
+    it('should return undefined and log a warning when a body function throws', async () => {
+      const fetcher = createMockFetcher();
+      const failingBodyFn = () => {
+        throw new Error('body error');
+      };
+
+      const service = createService<{ createUser: ServiceFn }>({
+        endpoints: {
+          createUser: { url: '/users', method: 'POST', body: failingBodyFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.createUser('arg1');
+
+      // tryCall catches the error, body becomes undefined
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ body: undefined }),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalled();
+    });
+
+    it('should return undefined and log a warning when a headers function throws', async () => {
+      const fetcher = createMockFetcher();
+      const failingHeadersFn = () => {
+        throw new Error('headers error');
+      };
+
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users', headers: failingHeadersFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUsers();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ headers: undefined }),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('fetcher.fetch return value', () => {
+    it('should return the value resolved by fetcher.fetch', async () => {
+      const expectedData = { users: [{ id: 1, name: 'Alice' }] };
+      const fetcher = createMockFetcher(expectedData);
+
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      const result = await service.getUsers();
+
+      expect(result).toEqual(expectedData);
+    });
+
+    it('should propagate errors thrown by fetcher.fetch', async () => {
+      const fetcher: Fetcher = {
+        fetch: mock(() => Promise.reject(new Error('network error'))) as any,
+      };
+
+      const service = createService<{ getUsers: ServiceFn }>({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await expect(service.getUsers()).rejects.toThrow('network error');
+    });
+  });
+
+  describe('complex scenarios', () => {
+    it('should handle function URL + function body + function headers + function params + basePath', async () => {
+      const fetcher = createMockFetcher({ success: true });
+
+      const service = createService<{ complexEndpoint: ServiceFn }>({
+        endpoints: {
+          complexEndpoint: {
+            url: (id: string) => `/items/${id}`,
+            method: 'PUT',
+            body: (id: string, data: any) => ({ ...data, updatedBy: `system-${id}` }),
+            headers: (id: string) => ({ 'X-Item-Id': id }),
+            params: (id: string) => ({ version: `${id}-v2` }),
+          },
+        },
+        basePath: 'https://api.example.com',
+        fetcher,
+      });
+
+      await service.complexEndpoint('abc', { name: 'Updated' });
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/items/abc?version=abc-v2',
+        expect.objectContaining({
+          method: 'PUT',
+          body: { name: 'Updated', updatedBy: 'system-abc' },
+          headers: { 'X-Item-Id': 'abc' },
+        }),
+      );
+    });
+
+    it('should handle async URL functions', async () => {
+      const fetcher = createMockFetcher();
+      const asyncUrlFn = async (id: string) => `/users/${id}`;
+
+      const service = createService<{ getUser: ServiceFn }>({
+        endpoints: {
+          getUser: { url: asyncUrlFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getUser('456');
+
+      expect(fetcher.fetch).toHaveBeenCalledWith('/users/456', expect.objectContaining({}));
+    });
+
+    it('should handle async body functions', async () => {
+      const fetcher = createMockFetcher();
+      const asyncBodyFn = async (data: any) => ({ ...data, timestamp: 123 });
+
+      const service = createService<{ create: ServiceFn }>({
+        endpoints: {
+          create: { url: '/items', method: 'POST', body: asyncBodyFn as any },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.create({ name: 'test' });
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/items',
+        expect.objectContaining({
+          body: { name: 'test', timestamp: 123 },
+        }),
+      );
+    });
+
+    it('should handle endpoint with no args and no body for non-GET', async () => {
+      const fetcher = createMockFetcher();
+      const service = createService<{ deleteAll: ServiceFn }>({
+        endpoints: {
+          deleteAll: { url: '/users', method: 'DELETE' },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.deleteAll();
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ body: undefined, method: 'DELETE' }),
+      );
+    });
+
+    it('should pass multiple arguments to URL function', async () => {
+      const fetcher = createMockFetcher();
+      const urlFn = (orgId: string, userId: string) => `/orgs/${orgId}/users/${userId}`;
+
+      const service = createService<{ getOrgUser: ServiceFn }>({
+        endpoints: {
+          getOrgUser: { url: urlFn },
+        },
+        basePath: undefined,
+        fetcher,
+      });
+
+      await service.getOrgUser('org1', 'user2');
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/orgs/org1/users/user2',
+        expect.objectContaining({}),
+      );
+    });
+  });
+});
