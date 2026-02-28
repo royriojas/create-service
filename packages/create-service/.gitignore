@@ -1,0 +1,11 @@
+dist
+node_modules
+coverage
+*.log
+.DS_Store
+.logs
+.nyc_output/
+.env
+.envrc
+.npmrc
+vite.config.ts.timestamp*

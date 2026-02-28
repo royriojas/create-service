@@ -1,5 +1,5 @@
-dist
 node_modules
+dist
 coverage
 *.log
 package-lock.json
@@ -10,3 +10,13 @@ package-lock.json
 .envrc
 .npmrc
 vite.config.ts.timestamp*
+
+# Turborepo
+.turbo
+
+# Docusaurus
+.docusaurus
+build
+
+# bun
+bun.lock

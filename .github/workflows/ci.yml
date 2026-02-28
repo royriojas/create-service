@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Lint & Test
+    name: Lint, Type Check & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -24,8 +24,11 @@ jobs:
     - name: Install Dependencies
       run: bun install
 
-    - name: Lint & Verify
-      run: bun run lint && bun run verify
+    - name: Lint
+      run: bunx turbo lint
+
+    - name: Type Check
+      run: bunx turbo check:types
 
     - name: Run Tests
-      run: bun test
+      run: bunx turbo test
