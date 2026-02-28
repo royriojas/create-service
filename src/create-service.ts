@@ -156,6 +156,7 @@ export type InferService<T extends Record<string, DescriptorBase>> = {
 // ─── Overloads ───
 
 /** Create a service with types inferred from the endpoint descriptors */
+// eslint-disable-next-line no-use-before-define
 export function createService<const T extends Record<string, DescriptorBase>>(args: {
   endpoints: T;
   basePath?: string;

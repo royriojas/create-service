@@ -210,6 +210,7 @@ describe('createService', () => {
     it('should support all standard HTTP methods', async () => {
       const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const;
 
+      // eslint-disable-next-line no-restricted-syntax
       for (const method of methods) {
         const fetcher = createMockFetcher();
         const service = createService<{ endpoint: ServiceFn }>({
@@ -220,6 +221,7 @@ describe('createService', () => {
           fetcher,
         });
 
+        // eslint-disable-next-line no-await-in-loop
         await service.endpoint();
 
         expect(fetcher.fetch).toHaveBeenCalledWith(
@@ -714,13 +716,13 @@ describe('createService', () => {
 });
 
 describe('createService (inferred API — no explicit generic)', () => {
-  const createMockFetcher = (response: any = { ok: true }): Fetcher => ({
+  const createMockFetcherInner = (response: any = { ok: true }): Fetcher => ({
     fetch: mock(() => Promise.resolve(response)) as any,
   });
 
   describe('basic inferred usage', () => {
     it('should create a service without an explicit generic', async () => {
-      const fetcher = createMockFetcher({ id: 1 });
+      const fetcher = createMockFetcherInner({ id: 1 });
       const service = createService({
         endpoints: {
           getUsers: { url: '/users' },
@@ -734,7 +736,7 @@ describe('createService (inferred API — no explicit generic)', () => {
     });
 
     it('should infer parameters from url function', async () => {
-      const fetcher = createMockFetcher({ id: 1, name: 'Alice' });
+      const fetcher = createMockFetcherInner({ id: 1, name: 'Alice' });
       const service = createService({
         endpoints: {
           getUser: { url: (id: string) => `/users/${id}` },
@@ -748,7 +750,7 @@ describe('createService (inferred API — no explicit generic)', () => {
     });
 
     it('should infer parameters from body function when url is a string', async () => {
-      const fetcher = createMockFetcher({ created: true });
+      const fetcher = createMockFetcherInner({ created: true });
       const service = createService({
         endpoints: {
           createUser: {
@@ -769,7 +771,7 @@ describe('createService (inferred API — no explicit generic)', () => {
     });
 
     it('should work with multiple inferred endpoints', async () => {
-      const fetcher = createMockFetcher({ ok: true });
+      const fetcher = createMockFetcherInner({ ok: true });
       const service = createService({
         endpoints: {
           listItems: { url: '/items' },
@@ -788,7 +790,7 @@ describe('createService (inferred API — no explicit generic)', () => {
   describe('transform', () => {
     it('should call transform with the fetcher result', async () => {
       const rawData = { data: [{ id: 1 }, { id: 2 }], meta: { total: 2 } };
-      const fetcher = createMockFetcher(rawData);
+      const fetcher = createMockFetcherInner(rawData);
       const transformFn = mock((data: any) => data.data);
 
       const service = createService({
@@ -809,7 +811,7 @@ describe('createService (inferred API — no explicit generic)', () => {
 
     it('should return raw fetcher result when no transform is provided', async () => {
       const rawData = { users: ['Alice', 'Bob'] };
-      const fetcher = createMockFetcher(rawData);
+      const fetcher = createMockFetcherInner(rawData);
 
       const service = createService({
         endpoints: {
@@ -828,7 +830,7 @@ describe('createService (inferred API — no explicit generic)', () => {
         name: string;
       }
       const rawData = { id: 1, name: 'Alice', extra: 'field' };
-      const fetcher = createMockFetcher(rawData);
+      const fetcher = createMockFetcherInner(rawData);
 
       const service = createService({
         endpoints: {
@@ -846,7 +848,7 @@ describe('createService (inferred API — no explicit generic)', () => {
 
     it('should support async transform functions', async () => {
       const rawData = { value: 42 };
-      const fetcher = createMockFetcher(rawData);
+      const fetcher = createMockFetcherInner(rawData);
 
       const service = createService({
         endpoints: {
@@ -864,7 +866,7 @@ describe('createService (inferred API — no explicit generic)', () => {
 
     it('should also work with transform in the legacy generic API', async () => {
       const rawData = { items: [1, 2, 3] };
-      const fetcher = createMockFetcher(rawData);
+      const fetcher = createMockFetcherInner(rawData);
 
       const service = createService<{ getItems: ServiceFn }>({
         endpoints: {
@@ -884,15 +886,16 @@ describe('createService (inferred API — no explicit generic)', () => {
   describe('inferred complex scenarios', () => {
     it('should handle url fn + body fn + params fn + transform + basePath', async () => {
       const rawData = { id: 'abc', saved: true, extra: 'stuff' };
-      const fetcher = createMockFetcher(rawData);
+      const fetcher = createMockFetcherInner(rawData);
 
       const service = createService({
         endpoints: {
           updateItem: {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             url: (id: string, _payload: { name: string }) => `/items/${id}`,
             method: 'PUT' as const,
             body: (id: string, payload: { name: string }) => payload,
-            params: (id: string) => ({ version: '2' }),
+            params: () => ({ version: '2' }),
             transform: (data: any) => ({ id: data.id, saved: data.saved }),
           },
         },
@@ -943,7 +946,7 @@ describe('createService (inferred API — no explicit generic)', () => {
 });
 
 describe('createEndpoint helper', () => {
-  const createMockFetcher = (response: any = { ok: true }): Fetcher => ({
+  const createMockFetcherInner = (response: any = { ok: true }): Fetcher => ({
     fetch: mock(() => Promise.resolve(response)) as any,
   });
 
@@ -953,13 +956,15 @@ describe('createEndpoint helper', () => {
       name: string;
     }
     // notice that extra field is ignored because we omit it on the transform function
-    const fetcher = createMockFetcher({ id: '1', name: 'Alice', extra: 'field' });
+    const fetcher = createMockFetcherInner({ id: '1', name: 'Alice', extra: 'field' });
 
     const service = createService({
       endpoints: {
-        getUser: createEndpoint<User, { id: string, name?: string }>({
+        getUser: createEndpoint<User, { id: string; name?: string }>({
           url: ({ id }) => `/users/${id}`,
-          transform: ({ name }) => { return { id: '2', name: name || 'Alice' }; },
+          transform: ({ name }) => {
+            return { id: '2', name: name || 'Alice' };
+          },
         }),
       },
       fetcher,
