@@ -2,6 +2,9 @@
 # service-creator - Changelog
 ## HEAD
 - **Bug Fixes**
+  - Fix publishing the module from monorepo misses the changed package.json file - [64452c8]( https://github.com/royriojas/service-creator/commit/64452c8 ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:58:24
+
+    
   - Fix publishing script in the context of the monorepo - [3cc19cf]( https://github.com/royriojas/service-creator/commit/3cc19cf ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:50:37
 
     
