@@ -28,7 +28,7 @@
   },
   "scripts": {
     "test": "TZ=UTC bun test",
-    "lint": "eslint --cache --cache-location=node_modules/.cache/ ./src/ --ext .ts,.tsx,.js",
+    "lint": "eslint --cache --cache-location=node_modules/.cache/ ./src/ ./website --ext .ts,.tsx,.js",
     "check:types": "tsc --noEmit",
     "verify": "bun lint && bun check:types",
     "autofix": "bun lint --fix",
