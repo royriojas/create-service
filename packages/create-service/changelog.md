@@ -1,5 +1,33 @@
 
 # service-creator - Changelog
+## HEAD
+- **Bug Fixes**
+  - Fix publishing script in the context of the monorepo - [1ecdce7]( https://github.com/royriojas/service-creator/commit/1ecdce7 ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:49:18
+
+    
+- **Refactoring**
+  - add a simpler publish script at the root of the monorepo - [27eff9b]( https://github.com/royriojas/service-creator/commit/27eff9b ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:42:00
+
+    
+  - Fix url for the site in github - [40b923b]( https://github.com/royriojas/service-creator/commit/40b923b ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:35:22
+
+    
+  - always use bun - [5284903]( https://github.com/royriojas/service-creator/commit/5284903 ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:32:23
+
+    
+  - add clean script for a clean start - [eaf4a0b]( https://github.com/royriojas/service-creator/commit/eaf4a0b ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:28:14
+
+    
+  - migrate to monorepo structure to have a shared node_modules folder instead of separated ones - [02e8ab0]( https://github.com/royriojas/service-creator/commit/02e8ab0 ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:20:30
+
+    
+  - remove unused files - [ae973ee]( https://github.com/royriojas/service-creator/commit/ae973ee ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 13:35:09
+
+    
+- **Other changes**
+  - Add docusaurus documentation - [007d967]( https://github.com/royriojas/service-creator/commit/007d967 ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 12:32:38
+
+    
 ## v0.3.0
 - **Other changes**
   - fix path to correct ci badge - [5207199]( https://github.com/royriojas/service-creator/commit/5207199 ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 10:01:58
@@ -33,6 +61,8 @@
   - migrate to bun.lock - [f5a559e]( https://github.com/royriojas/service-creator/commit/f5a559e ), [Roy Riojas](https://github.com/Roy Riojas), 27/02/2026 21:39:19
 
     
+## v0.2.0
+- **Features**
   - make tsc happy - [12b057d]( https://github.com/royriojas/service-creator/commit/12b057d ), [Roy Riojas](https://github.com/Roy Riojas), 16/12/2024 14:20:18
 
     
