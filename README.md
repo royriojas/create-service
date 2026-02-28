@@ -1,7 +1,7 @@
 
 [![NPM Version](https://img.shields.io/npm/v/service-creator.svg)](https://www.npmjs.com/package/service-creator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/royriojas/service-creator/actions/workflows/ci.yml/badge.svg)](https://github.com/royriojas/service-creator/actions/workflows/ci.yml)
+[![CI](https://github.com/royriojas/create-service/actions/workflows/ci.yml/badge.svg)](https://github.com/royriojas/create-service/actions/workflows/ci.yml)
 
 
 # service-creator
