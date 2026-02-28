@@ -1,6 +1,6 @@
 {
   "name": "service-creator",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A simple abstraction to create \"services\", plain objects that can be used to perform fetch calls in a convention over configuration fashion.",
   "license": "MIT",
   "author": "royriojas",
@@ -38,10 +38,10 @@
     "install-hooks": "changelogx install-hook",
     "pre-v": "bun run verify",
     "post-v": "bun run do-changelog && git push --no-verify && git push --tags --no-verify",
-    "bump-major": "bun run pre-v && npm version major -m 'BLD: Release v%s' && npm run post-v",
-    "bump-minor": "bun run pre-v && npm version minor -m 'BLD: Release v%s' && npm run post-v",
-    "bump-patch": "bun run pre-v && npm version patch -m 'BLD: Release v%s' && npm run post-v",
-    "bump-prerelease": "bun run pre-v && npm version prerelease -m 'BLD: Release v%s' && npm run post-v",
+    "bump-major": "bun run pre-v && npm version major --no-workspaces-update -m 'BLD: Release v%s' && npm run post-v",
+    "bump-minor": "bun run pre-v && npm version minor --no-workspaces-update -m 'BLD: Release v%s' && npm run post-v",
+    "bump-patch": "bun run pre-v && npm version patch --no-workspaces-update -m 'BLD: Release v%s' && npm run post-v",
+    "bump-prerelease": "bun run pre-v && npm version prerelease --no-workspaces-update -m 'BLD: Release v%s' && npm run post-v",
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {
