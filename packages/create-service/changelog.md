@@ -2,6 +2,9 @@
 # service-creator - Changelog
 ## HEAD
 - **Bug Fixes**
+  - Fix publishing script in the context of the monorepo - [3cc19cf]( https://github.com/royriojas/service-creator/commit/3cc19cf ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:50:37
+
+    
   - Fix publishing script in the context of the monorepo - [1ecdce7]( https://github.com/royriojas/service-creator/commit/1ecdce7 ), [Roy Riojas](https://github.com/Roy Riojas), 28/02/2026 14:49:18
 
     
