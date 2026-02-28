@@ -37,3 +37,5 @@ echo "📦 Running 'bun run bump-$BUMP_TYPE'..."
 bun run "bump-$BUMP_TYPE"
 
 echo "✅ Publish process completed successfully!"
+
+npm publish
