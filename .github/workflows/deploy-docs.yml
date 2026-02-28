@@ -33,7 +33,7 @@ jobs:
         run: bun install
 
       - name: Build docs
-        run: bunx turbo build --filter=@service-creator/docs
+        run: bun turbo build --filter=@service-creator/docs
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

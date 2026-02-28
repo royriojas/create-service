@@ -25,10 +25,10 @@ jobs:
       run: bun install
 
     - name: Lint
-      run: bunx turbo lint
+      run: bun turbo lint
 
     - name: Type Check
-      run: bunx turbo check:types
+      run: bun turbo check:types
 
     - name: Run Tests
-      run: bunx turbo test
+      run: bun turbo test
