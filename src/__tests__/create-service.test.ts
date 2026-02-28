@@ -1,5 +1,5 @@
 import { describe, test as it, expect, mock, beforeEach, spyOn } from 'bun:test';
-import { createService, ServiceFn } from '../create-service';
+import { createService, createEndpoint, ServiceFn } from '../create-service';
 import type { Fetcher } from '../fetch-types';
 
 // Helper to create a mock fetcher
@@ -710,5 +710,384 @@ describe('createService', () => {
         expect.objectContaining({}),
       );
     });
+  });
+});
+
+describe('createService (inferred API — no explicit generic)', () => {
+  const createMockFetcher = (response: any = { ok: true }): Fetcher => ({
+    fetch: mock(() => Promise.resolve(response)) as any,
+  });
+
+  describe('basic inferred usage', () => {
+    it('should create a service without an explicit generic', async () => {
+      const fetcher = createMockFetcher({ id: 1 });
+      const service = createService({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        fetcher,
+      });
+
+      expect(typeof service.getUsers).toBe('function');
+      const result = await service.getUsers();
+      expect(result).toEqual({ id: 1 });
+    });
+
+    it('should infer parameters from url function', async () => {
+      const fetcher = createMockFetcher({ id: 1, name: 'Alice' });
+      const service = createService({
+        endpoints: {
+          getUser: { url: (id: string) => `/users/${id}` },
+        },
+        fetcher,
+      });
+
+      await service.getUser('42');
+
+      expect(fetcher.fetch).toHaveBeenCalledWith('/users/42', expect.objectContaining({}));
+    });
+
+    it('should infer parameters from body function when url is a string', async () => {
+      const fetcher = createMockFetcher({ created: true });
+      const service = createService({
+        endpoints: {
+          createUser: {
+            url: '/users',
+            method: 'POST',
+            body: (data: { name: string; age: number }) => data,
+          },
+        },
+        fetcher,
+      });
+
+      await service.createUser({ name: 'Bob', age: 25 });
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        '/users',
+        expect.objectContaining({ body: { name: 'Bob', age: 25 } }),
+      );
+    });
+
+    it('should work with multiple inferred endpoints', async () => {
+      const fetcher = createMockFetcher({ ok: true });
+      const service = createService({
+        endpoints: {
+          listItems: { url: '/items' },
+          getItem: { url: (id: number) => `/items/${id}` },
+          deleteItem: { url: (id: number) => `/items/${id}`, method: 'DELETE' },
+        },
+        fetcher,
+      });
+
+      expect(typeof service.listItems).toBe('function');
+      expect(typeof service.getItem).toBe('function');
+      expect(typeof service.deleteItem).toBe('function');
+    });
+  });
+
+  describe('transform', () => {
+    it('should call transform with the fetcher result', async () => {
+      const rawData = { data: [{ id: 1 }, { id: 2 }], meta: { total: 2 } };
+      const fetcher = createMockFetcher(rawData);
+      const transformFn = mock((data: any) => data.data);
+
+      const service = createService({
+        endpoints: {
+          getUsers: {
+            url: '/users',
+            transform: transformFn,
+          },
+        },
+        fetcher,
+      });
+
+      const result = await service.getUsers();
+
+      expect(transformFn).toHaveBeenCalledWith(rawData);
+      expect(result).toEqual([{ id: 1 }, { id: 2 }]);
+    });
+
+    it('should return raw fetcher result when no transform is provided', async () => {
+      const rawData = { users: ['Alice', 'Bob'] };
+      const fetcher = createMockFetcher(rawData);
+
+      const service = createService({
+        endpoints: {
+          getUsers: { url: '/users' },
+        },
+        fetcher,
+      });
+
+      const result = await service.getUsers();
+      expect(result).toEqual(rawData);
+    });
+
+    it('should support transform with typed return value', async () => {
+      interface User {
+        id: number;
+        name: string;
+      }
+      const rawData = { id: 1, name: 'Alice', extra: 'field' };
+      const fetcher = createMockFetcher(rawData);
+
+      const service = createService({
+        endpoints: {
+          getUser: {
+            url: (id: string) => `/users/${id}`,
+            transform: (data: any): User => ({ id: data.id, name: data.name }),
+          },
+        },
+        fetcher,
+      });
+
+      const result = await service.getUser('1');
+      expect(result).toEqual({ id: 1, name: 'Alice' });
+    });
+
+    it('should support async transform functions', async () => {
+      const rawData = { value: 42 };
+      const fetcher = createMockFetcher(rawData);
+
+      const service = createService({
+        endpoints: {
+          getData: {
+            url: '/data',
+            transform: async (data: any) => data.value * 2,
+          },
+        },
+        fetcher,
+      });
+
+      const result = await service.getData();
+      expect(result).toBe(84);
+    });
+
+    it('should also work with transform in the legacy generic API', async () => {
+      const rawData = { items: [1, 2, 3] };
+      const fetcher = createMockFetcher(rawData);
+
+      const service = createService<{ getItems: ServiceFn }>({
+        endpoints: {
+          getItems: {
+            url: '/items',
+            transform: (data: any) => data.items,
+          },
+        },
+        fetcher,
+      });
+
+      const result = await service.getItems();
+      expect(result).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('inferred complex scenarios', () => {
+    it('should handle url fn + body fn + params fn + transform + basePath', async () => {
+      const rawData = { id: 'abc', saved: true, extra: 'stuff' };
+      const fetcher = createMockFetcher(rawData);
+
+      const service = createService({
+        endpoints: {
+          updateItem: {
+            url: (id: string, _payload: { name: string }) => `/items/${id}`,
+            method: 'PUT' as const,
+            body: (id: string, payload: { name: string }) => payload,
+            params: (id: string) => ({ version: '2' }),
+            transform: (data: any) => ({ id: data.id, saved: data.saved }),
+          },
+        },
+        basePath: 'https://api.example.com',
+        fetcher,
+      });
+
+      const result = await service.updateItem('abc', { name: 'Updated' });
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/items/abc?version=2',
+        expect.objectContaining({
+          method: 'PUT',
+          body: { name: 'Updated' },
+        }),
+      );
+      expect(result).toEqual({ id: 'abc', saved: true });
+    });
+
+    it('should handle mixed endpoints — some with transform, some without', async () => {
+      const fetcher: Fetcher = {
+        fetch: mock((url: string) => {
+          if (url === '/list') return Promise.resolve({ data: [1, 2] });
+          return Promise.resolve({ raw: true });
+        }) as any,
+      };
+
+      const service = createService({
+        endpoints: {
+          getList: {
+            url: '/list',
+            transform: (data: any) => data.data,
+          },
+          getRaw: {
+            url: '/raw',
+          },
+        },
+        fetcher,
+      });
+
+      const listResult = await service.getList();
+      expect(listResult).toEqual([1, 2]);
+
+      const rawResult = await service.getRaw();
+      expect(rawResult).toEqual({ raw: true });
+    });
+  });
+});
+
+describe('createEndpoint helper', () => {
+  const createMockFetcher = (response: any = { ok: true }): Fetcher => ({
+    fetch: mock(() => Promise.resolve(response)) as any,
+  });
+
+  it('should type args and return from generics', async () => {
+    interface User {
+      id: string;
+      name: string;
+    }
+    const fetcher = createMockFetcher({ id: '1', name: 'Alice' });
+
+    const service = createService({
+      endpoints: {
+        getUser: createEndpoint<{ id: string }, User>({
+          url: ({ id }) => `/users/${id}`,
+        }),
+      },
+      fetcher,
+    });
+
+    const result = await service.getUser({ id: '42' });
+
+    expect(fetcher.fetch).toHaveBeenCalledWith('/users/42', expect.objectContaining({}));
+    expect(result).toEqual({ id: '1', name: 'Alice' });
+  });
+
+  it('should produce a no-arg method when TArgs is void', async () => {
+    const fetcher = createMockFetcher([1, 2, 3]);
+
+    const service = createService({
+      endpoints: {
+        listItems: createEndpoint<void, number[]>({
+          url: '/items',
+        }),
+      },
+      fetcher,
+    });
+
+    const result = await service.listItems();
+
+    expect(fetcher.fetch).toHaveBeenCalledWith('/items', expect.objectContaining({}));
+    expect(result).toEqual([1, 2, 3]);
+  });
+
+  it('should apply transform at runtime', async () => {
+    const rawData = { data: { id: '1', name: 'Alice' }, meta: {} };
+    const fetcher = createMockFetcher(rawData);
+
+    const service = createService({
+      endpoints: {
+        getUser: createEndpoint<{ id: string }, { id: string; name: string }>({
+          url: ({ id }) => `/users/${id}`,
+          transform: (data: any) => data.data,
+        }),
+      },
+      fetcher,
+    });
+
+    const result = await service.getUser({ id: '1' });
+    expect(result).toEqual({ id: '1', name: 'Alice' });
+  });
+
+  it('should support custom error type (type-level only)', async () => {
+    interface ApiError {
+      code: number;
+      message: string;
+    }
+    const fetcher = createMockFetcher({ ok: true });
+
+    const service = createService({
+      endpoints: {
+        riskyCall: createEndpoint<void, { ok: boolean }, ApiError>({
+          url: '/risky',
+        }),
+      },
+      fetcher,
+    });
+
+    const result = await service.riskyCall();
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('should work with basePath', async () => {
+    const fetcher = createMockFetcher({ found: true });
+
+    const service = createService({
+      endpoints: {
+        getItem: createEndpoint<{ id: number }, { found: boolean }>({
+          url: ({ id }) => `/items/${id}`,
+        }),
+      },
+      basePath: 'https://api.example.com',
+      fetcher,
+    });
+
+    await service.getItem({ id: 99 });
+
+    expect(fetcher.fetch).toHaveBeenCalledWith(
+      'https://api.example.com/items/99',
+      expect.objectContaining({}),
+    );
+  });
+
+  it('should work alongside plain descriptors in the same service', async () => {
+    const fetcher = createMockFetcher({ ok: true });
+
+    const service = createService({
+      endpoints: {
+        getUser: createEndpoint<{ id: string }, { name: string }>({
+          url: ({ id }) => `/users/${id}`,
+        }),
+        listUsers: {
+          url: '/users',
+          transform: (data: any): string[] => data.names,
+        },
+      },
+      fetcher,
+    });
+
+    expect(typeof service.getUser).toBe('function');
+    expect(typeof service.listUsers).toBe('function');
+  });
+
+  it('should pass args through body function', async () => {
+    const fetcher = createMockFetcher({ created: true });
+
+    const service = createService({
+      endpoints: {
+        createUser: createEndpoint<{ name: string; age: number }, { created: boolean }>({
+          url: '/users',
+          method: 'POST',
+          body: (args) => args,
+        }),
+      },
+      fetcher,
+    });
+
+    await service.createUser({ name: 'Alice', age: 30 });
+
+    expect(fetcher.fetch).toHaveBeenCalledWith(
+      '/users',
+      expect.objectContaining({
+        body: { name: 'Alice', age: 30 },
+        method: 'POST',
+      }),
+    );
   });
 });

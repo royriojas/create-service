@@ -14,6 +14,8 @@ const tryCall = async (fn: Function, ...args: any[]) => {
   }
 };
 
+// ─── Legacy types (kept for backward compat with createService<T>) ───
+
 export interface Fn<T extends Array<any>> {
   (...args: T): string;
 }
@@ -25,11 +27,12 @@ export type ObjectOrFn<T extends ServiceFn> = object | Fn<Parameters<T>>;
 
 export interface Descriptor<K extends ServiceFn> {
   url: StringOrFn<K>;
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS' | 'TRACE' | 'CONNECT';
+  method?: HttpMethod;
   body?: ObjectOrFn<K>;
   headers?: ObjectOrFn<K>;
   params?: ObjectOrFn<K>;
   fetchOpts?: FetchOptions;
+  transform?: (data: any) => any;
 }
 
 export type ServiceDescriptor<T> = {
@@ -38,15 +41,132 @@ export type ServiceDescriptor<T> = {
 
 export interface CreateServiceArgs<T> {
   endpoints: ServiceDescriptor<T>;
-  basePath: string | undefined;
+  basePath?: string;
   fetcher: Fetcher;
 }
 
-export const createService = <T>({ endpoints, basePath, fetcher }: CreateServiceArgs<T>): T =>
-  Object.keys(endpoints).reduce((service, serviceName) => {
+// ─── New inferred API types ───
+
+export type HttpMethod =
+  | 'GET'
+  | 'POST'
+  | 'PUT'
+  | 'DELETE'
+  | 'PATCH'
+  | 'HEAD'
+  | 'OPTIONS'
+  | 'TRACE'
+  | 'CONNECT';
+
+export interface DescriptorBase {
+  url: string | ((...args: any[]) => string);
+  method?: HttpMethod;
+  body?: object | ((...args: any[]) => any);
+  headers?: object | ((...args: any[]) => any);
+  params?: object | ((...args: any[]) => any);
+  fetchOpts?: FetchOptions;
+  transform?: (data: any) => any;
+}
+
+// ─── createEndpoint helper ───
+
+/** @internal Type brand symbol — not present at runtime */
+declare const ENDPOINT_TYPES: unique symbol;
+
+/** A descriptor branded with explicit TArgs, TResponse, TError types */
+export interface TypedEndpoint<TArgs = any, TResponse = any, TError = Error>
+  extends DescriptorBase {
+  readonly [ENDPOINT_TYPES]: { args: TArgs; response: TResponse; error: TError };
+}
+
+/** Configuration accepted by createEndpoint */
+export interface EndpointConfig<TArgs, TResponse> {
+  url: string | ((args: TArgs) => string);
+  method?: HttpMethod;
+  body?: object | ((args: TArgs) => any);
+  headers?: object | ((args: TArgs) => any);
+  params?: object | ((args: TArgs) => any);
+  fetchOpts?: FetchOptions;
+  transform?: (data: any) => TResponse;
+}
+
+/**
+ * Define a typed endpoint with explicit input/output/error types.
+ *
+ * @example
+ * ```ts
+ * createEndpoint<{ id: string }, User>({
+ *   url: ({ id }) => `/users/${id}`,
+ * })
+ * // service method: (args: { id: string }) => Promise<User>
+ * ```
+ */
+export function createEndpoint<TArgs = void, TResponse = any, TError = Error>(
+  config: EndpointConfig<TArgs, TResponse>,
+): TypedEndpoint<TArgs, TResponse, TError> {
+  return config as any;
+}
+
+// ─── Type inference ───
+
+/** Infer the service method args from a descriptor */
+export type InferArgs<D> =
+  // 1. Branded endpoint — use the explicit TArgs
+  D extends { readonly [ENDPOINT_TYPES]: { args: infer A } }
+    ? [A] extends [void]
+      ? []
+      : [args: A]
+    : // 2. Infer from descriptor functions (url → body → params → headers)
+      D extends { url: (...args: infer P) => any }
+      ? P
+      : D extends { body: (...args: infer P) => any }
+        ? P
+        : D extends { params: (...args: infer P) => any }
+          ? P
+          : D extends { headers: (...args: infer P) => any }
+            ? P
+            : any[];
+
+/** Infer the service method return type from a descriptor */
+export type InferReturn<D> =
+  // 1. Branded endpoint — use the explicit TResponse
+  D extends { readonly [ENDPOINT_TYPES]: { response: infer R } }
+    ? R
+    : // 2. Infer from transform return type
+      D extends { transform: (data: any) => infer R }
+      ? R
+      : any;
+
+/** Infer the error type from a branded descriptor */
+export type InferError<D> = D extends {
+  readonly [ENDPOINT_TYPES]: { error: infer E };
+}
+  ? E
+  : Error;
+
+export type InferService<T extends Record<string, DescriptorBase>> = {
+  [K in keyof T]: (...args: InferArgs<T[K]>) => Promise<InferReturn<T[K]>>;
+};
+
+// ─── Overloads ───
+
+/** Create a service with types inferred from the endpoint descriptors */
+export function createService<const T extends Record<string, DescriptorBase>>(args: {
+  endpoints: T;
+  basePath?: string;
+  fetcher: Fetcher;
+}): InferService<T>;
+
+/** @deprecated Use the inferred API (call without explicit generic) */
+export function createService<T>(args: CreateServiceArgs<T>): T;
+
+// ─── Implementation ───
+
+export function createService({ endpoints, basePath, fetcher }: any): any {
+  return Object.keys(endpoints).reduce((service: any, serviceName: string) => {
     service[serviceName] = async (...args: any[]) => {
-      const { url, body, headers, method, params, fetchOpts } =
-        endpoints[serviceName as keyof ServiceDescriptor<T>];
+      const { url, body, headers, method, params, fetchOpts, transform } =
+        endpoints[serviceName];
 
       let urlToUse: string = typeof url === 'function' ? await tryCall(url, ...args) : url;
       if (typeof urlToUse !== 'string') {
@@ -81,8 +201,10 @@ export const createService = <T>({ endpoints, basePath, fetcher }: CreateService
         urlToUse = setQueryParams(urlToUse, paramsToUse);
       }
 
-      return fetcher.fetch(urlToUse, opts);
+      const result = await fetcher.fetch(urlToUse, opts);
+      return transform ? transform(result) : result;
     };
 
     return service;
   }, {} as any);
+}

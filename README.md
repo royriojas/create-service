@@ -10,9 +10,17 @@ npm install service-creator
 
 ## Usage
 
-```js
+### Inferred API (recommended)
+
+Types are inferred directly from your endpoint descriptors — no interface needed:
+
+```ts
 import { createService } from 'service-creator';
-import { v4 as uuid } from 'uuid';
+
+interface User {
+  id: string;
+  name: string;
+}
 
 const fetcher = {
   fetch: async (url, opts) => {
@@ -21,23 +29,56 @@ const fetcher = {
   },
 };
 
-// defining the interface of the service is helpful to have good typings
-// service methods are async functions that return a promise that resolves to the response
-// expected to be received from the fetch/xhr calls
+const service = createService({
+  endpoints: {
+    getUsers: {
+      method: 'GET',
+      url: '/v1/users',
+      // transform provides return type inference: getUsers() => Promise<User[]>
+      transform: (data: any): User[] => data.users,
+    },
+    getUserById: {
+      method: 'GET',
+      // url function provides parameter type inference: getUserById(id: string) => ...
+      url: (id: string) => `/v1/users/${id}`,
+      transform: (data: any): User => data,
+    },
+    createUser: {
+      method: 'POST',
+      url: '/v1/users',
+      // body function provides parameter type inference: createUser(payload) => ...
+      body: (payload: { name: string }) => payload,
+      transform: (data: any): User => data,
+    },
+  },
+  basePath: 'https://api.example.com',
+  fetcher,
+});
+
+// All types are inferred:
+const users = await service.getUsers();        // User[]
+const user = await service.getUserById('123');  // User
+const created = await service.createUser({ name: 'Alice' }); // User
+```
+
+### Legacy API
+
+You can also pass an explicit interface for typing (backward compatible):
+
+```ts
+import { createService } from 'service-creator';
+import { v4 as uuid } from 'uuid';
+
 export interface PPService {
   getSomeData: (prompt: string) => Promise<SomeData[]>;
-  getDataById: (id: string) => Promise<SomeData>; 
+  getDataById: (id: string) => Promise<SomeData>;
 }
 
-const commonHeadersFn = () => {
-  const appCtx = getCtx();
+const commonHeadersFn = () => ({
+  'x-req-id': uuid(),
+});
 
-  return {
-    'x-req-id': uuid(),
-  };
-};
-
-const service = createService({
+const service = createService<PPService>({
   endpoints: {
     getSomeData: {
       method: 'GET',
@@ -48,20 +89,12 @@ const service = createService({
     getDataById: {
       method: 'GET',
       headers: commonHeadersFn,
-      url: ({ id }) => `/v1/get-some-data-by-id/${id}`, 
+      url: ({ id }) => `/v1/get-some-data-by-id/${id}`,
     },
   },
-  basePath: api,  
+  basePath: api,
   fetcher,
 });
-
-const data = await service.getSomeData({ prompt: 'hello world' });
-
-console.log(data); // expected an array of SomeData
-
-const dataById = await service.getDataById({ id: '1' });
-
-console.log(dataById); // expected a single SomeData
 ```
 
 ## License
