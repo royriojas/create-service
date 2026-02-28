@@ -1,3 +1,9 @@
+
+[![NPM Version](https://img.shields.io/npm/v/service-creator.svg)](https://www.npmjs.com/package/service-creator)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/royriojas/service-creator/actions/workflows/ci.yml/badge.svg)](https://github.com/royriojas/service-creator/actions/workflows/ci.yml)
+
+
 # service-creator
 
 A simple abstraction to create "services" — plain objects with typed async methods that perform fetch calls, using convention over configuration.
